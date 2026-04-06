@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attendance System</title>
+<link rel="stylesheet" href="style.css">
+<script>
+
+function openSection(section){
+    document.querySelectorAll(".section").forEach(sec=>sec.style.display="none");
+    document.getElementById(section).style.display="block";
+}
+
+let students = JSON.parse(localStorage.getItem("students")) || {
+    section1:[
+        "Aceron, Jake B.","Cabaneros Alfred","Dacut, Rica May","Gamolo, Wislly",
+        "Espinosa, Gabrylle","Japos, Honey Mae","Parami, Rex Horald","Sumahon, Aldave","Viernes, John Lloyd"
+    ],
+    section2:[
+        "Abecia, John Toven P.","Bacarrisas, Clint Jaspher","Balos, Mark Lester Jr.","Callao, Ashley James","Dagoc, Rhalf",
+        "Daque, Jhon Paul","Evangelista, Ken","Fuentes, Christian John","Lagaolao, Junvic B.","Maambong Recsle Joe"
+    ],
+    section3:[
+        "Auguis, Mary Divine","Dalogdog, Ian Joven","Montano, Derick M.","Omac, Joshua G.","Panim, Kent P.",
+        "Regodon,John Raniel D.","Sia,Jhone Seatiel G.","Tenebro, Jevan J.","Teves, Jeff B.","Villanueva, Von Andrei Joshua G."
+    ]
+};
+
+function saveStudents(){
+    localStorage.setItem("students", JSON.stringify(students));
+}
+
+function loadAttendance(section){
+    openSection("attendance");
+     const sectionNames = {
+    section1: "FB1-IT1-01",
+    section2: "FB1-IT1-02",
+    section3: "FB1-IT1-03"
+  };
+
+  document.getElementById("section-title").innerText = sectionNames[section];
+  
+  let table = document.getElementById("student-list");
+  table.innerHTML="";
+  students[section].forEach(name=>{
+    table.innerHTML += `
+      <tr>
+        <td>${name}</td>
+        <td><input type="radio" name="${name}" value="Present" required></td>
+        <td><input type="radio" name="${name}" value="Absent"></td>
+        <td><input type="radio" name="${name}" value="Late"></td>
+        </tr>
+        `;
+    });
+    localStorage.setItem("activeSection",section);
+    document.getElementById("attendance").scrollIntoView({ behavior: "smooth" });
+
+}
+
+function submitAttendance(){
+    let section = localStorage.getItem("activeSection");
+    let date = document.getElementById("date").value;
+    if(!date){
+        alert("Please select date");
+        return false;
+    }
+    let result = [];
+    let incomplete = false;
+    students[section].forEach(name=>{
+        let status = document.querySelector(`input[name="${name}"]:checked`);
+        if(!status){
+            incomplete = true;
+        } else {
+            result.push({
+                name:name,
+                status:status.value,
+                date:date,
+                section:section
+            });
+        }
+    });
+    if(incomplete){
+        alert("Please mark attendance for ALL students");
+        return false;
+    }
+    let all = JSON.parse(localStorage.getItem("attendance")) || [];
+    all = all.concat(result);
+    localStorage.setItem("attendance",JSON.stringify(all));
+    alert("Attendance Saved Successfully ✅");
+    showRecords();
+    return false;
+}
+function showRecords(){
+    openSection("records");
+    let box = document.getElementById("record-list");
+    let data = JSON.parse(localStorage.getItem("attendance")) || [];
+    if(data.length === 0){
+        box.innerHTML = "<p>No attendance yet.</p>";
+        document.getElementById("records").scrollIntoView({ behavior: "smooth" });
+        return;
+    }
+const sectionNames = {
+        section1: "FB1-IT1-01",
+        section2: "FB1-IT1-02",
+        section3: "FB1-IT1-03"
+}
+    let grouped = {};
+    data.forEach((item, index)=>{
+        if(!grouped[item.section]) grouped[item.section] = {};
+        if(!grouped[item.section][item.date]) grouped[item.section][item.date] = [];
+        grouped[item.section][item.date].push({...item, index});
+    });
+
+    let output = "";
+    for(let section in grouped){
+        output += `<h3>${sectionNames[section]}</h3>`;
+        for(let date in grouped[section]){
+            output += `<h4>Date: ${date}</h4>`;
+            output += `
+            <table>
+              <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Edit</th>
+                <th>Delete</th>
+              </tr>
+            `;
+            grouped[section][date].forEach(record=>{
+                output += `
+                <tr>
+                  <td>${record.name}</td>
+                  <td>${record.status}</td>
+                  <td><button onclick="editRecord(${record.index})" class="view-btn">Edit</button></td>
+                  <td><button onclick="deleteRecord(${record.index})" class="back">Delete</button></td>
+                </tr>
+                `;
+            });
+            output += "</table><br>";
+        } 
+    } 
+    box.innerHTML = output;
+    document.getElementById("records").scrollIntoView({ behavior: "smooth" });
+}
+
+
+function clearRecords(){
+      localStorage.removeItem("attendance");
+      alert("All attendance records cleared ✅");
+      showRecords();
+}
+function openAdd(){
+    openSection("add");
+    document.getElementById("add").scrollIntoView({ behavior: "smooth" });
+}
+
+function saveSection(){
+    let sectionName = document.getElementById("new-section").value.toLowerCase();
+    let studentNames = document.getElementById("student-names").value.split(",");
+    if(!sectionName){
+        alert("Enter section name");
+        return;
+    }
+    if(students[sectionName]){
+        alert("Section already exists");
+        return;
+    }
+    students[sectionName] = studentNames.map(name=>name.trim());
+    saveStudents();
+    alert("Section Added Successfully ✅");
+    location.reload();
+}
+function editRecord(index){
+    let data = JSON.parse(localStorage.getItem("attendance")) || [];
+    let record = data[index];
+
+    let newStatus = prompt(`Edit status for ${record.name} (Present/Absent/Late):`, record.status);
+    if(newStatus){
+        record.status = newStatus;
+        data[index] = record;
+        localStorage.setItem("attendance", JSON.stringify(data));
+        alert("Record updated ✅");
+        showRecords();
+    }
+}
+
+function deleteRecord(index){
+    let data = JSON.parse(localStorage.getItem("attendance")) || [];
+    if(confirm("Are you sure you want to delete this record?")){
+        data.splice(index, 1);
+        localStorage.setItem("attendance", JSON.stringify(data));
+        alert("Record deleted 🗑️");
+        showRecords();
+    }
+}
+
+window.onload=()=>openSection("home");
+</script>
+</head>
+<body>
+
+ <header class="main-header">
+    <img src="HOMEPAGE.png" alt="logo" class="logo">
+    <h1>ATTENDANCE CHECKER SYSTEM FOR CITE STUDENTS</h1>
+  </header>
+
+<div class="buttons">
+  <button onclick="loadAttendance('section1')">🔵 FB1-IT1-01</button>
+  <button onclick="loadAttendance('section2')">🔵 FB1-IT1-02</button>
+  <button onclick="loadAttendance('section3')">🔵 FB1-IT1-03</button>
+  <button onclick="showRecords()" class="view-btn">⏹️ View Attendance Record</button>
+  <button onclick="openAdd()" class="add-btn">+ Add New Class</button>
+</div>
+
+<footer class="site-footer">
+    <p>College of Information Technology • Cagayan de Oro College</p>
+</footer>
+
+<section id="attendance" class="section">
+<h2 id="section-title"></h2>
+<label>Select Date:</label>
+<br><br>
+<input type="date" id="date">
+<form onsubmit="return submitAttendance()">
+<table>
+<tr>
+<th>Name</th>
+<th>Present</th>
+<th>Absent</th>
+<th>Late</th>
+</tr>
+<tbody id="student-list"></tbody>
+</table>
+<br>
+
+<button class="submit">
+Submit Attendance
+</button>
+</form>
+
+<br>
+
+<button onclick="openSection('home')" class="back">
+Back
+</button>
+</section>
+
+
+<section id="records" class="section">
+
+<h2>Attendance Records</h2>
+
+<div id="record-list"></div>
+<br>
+<button onclick="clearRecords()" class="back">Clear All Records</button>
+<button onclick="openSection('home')" class="back">
+Back
+</button>
+
+</section>
+
+<section id="add" class="section">
+
+<h2>Add Section</h2>
+<label>Section Name:</label>
+<br>
+<input type="text" id="new-section" placeholder="example: section4">
+<br><br>
+<label>Student Names (separate by comma)</label>
+<br>
+<textarea id="student-names" placeholder="Juan Cruz, Maria Santos, Pedro Reyes"></textarea>
+<br><br>
+<button onclick="saveSection()" class="submit">
+Save Section
+</button>
+<br><br>
+<button onclick="openSection('home')" class="back">
+Back
+</button>
+</section>
+</body>
+</html>
